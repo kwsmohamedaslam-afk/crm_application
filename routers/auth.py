@@ -37,7 +37,7 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
             detail="Invalid username or password",
         )
 
-    if not user.is_active:
+    if not user.status:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Account is locked. Contact admin.",
@@ -48,7 +48,7 @@ def login(payload: UserLogin, db: Session = Depends(get_db)):
 
         # 🚨 Lock account after 5 attempts
         if user.failed_attempts >= 5:
-            user.is_active = False
+            user.status = False
             db.commit()
 
             raise HTTPException(
@@ -81,7 +81,7 @@ def unlock_user(user_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="User not found")
 
     user.failed_attempts = 0
-    user.is_active = True
+    user.status = True
     db.commit()
 
     return {"message": "User unlocked successfully"}

@@ -1,152 +1,119 @@
-from datetime import datetime, date
+from datetime import datetime
 from sqlalchemy.orm import Session
-from fastapi import HTTPException
-
 from models.attendance import Attendance
+from models.attendance_event import AttendanceEvent
 
 
-def check_in(db: Session, user_id: int):
-    today = date.today()
+class AttendanceService:
 
-    attendance = db.query(Attendance).filter(
-        Attendance.user_id == user_id,
-        Attendance.attendance_date == today
-    ).first()
+    @staticmethod
+    def get_open_session(db: Session, user_id: int):
+        return db.query(Attendance).filter(
+            Attendance.user_id == user_id,
+            Attendance.check_out.is_(None)
+        ).order_by(Attendance.id.desc()).first()
 
-    if attendance and attendance.check_in:
-        raise HTTPException(status_code=400, detail="Already checked in")
 
-    if not attendance:
-        attendance = Attendance(
+    @staticmethod
+    def close_open_events(db: Session, attendance: Attendance):
+        last_event = db.query(AttendanceEvent).filter(
+            AttendanceEvent.attendance_id == attendance.id
+        ).order_by(AttendanceEvent.id.desc()).first()
+
+        if not last_event:
+            return
+
+        if last_event.event_type == "BREAK_START":
+            db.add(AttendanceEvent(
+                attendance_id=attendance.id,
+                event_type="BREAK_END"
+            ))
+
+        elif last_event.event_type == "IDLE_START":
+            db.add(AttendanceEvent(
+                attendance_id=attendance.id,
+                event_type="IDLE_END"
+            ))
+
+
+    @staticmethod
+    def login(db: Session, user_id: int):
+        # close previous session if exists
+        open_session = AttendanceService.get_open_session(db, user_id)
+
+        if open_session:
+            AttendanceService.close_open_events(db, open_session)
+            open_session.check_out = datetime.utcnow()
+            open_session.status = "LOGGED_OUT"
+
+        # create new session
+        new_session = Attendance(
             user_id=user_id,
-            attendance_date=today
+            status="WORKING"
         )
 
-    attendance.check_in = datetime.utcnow()
-    attendance.status = 1  # Present
+        db.add(new_session)
+        db.commit()
+        db.refresh(new_session)
 
-    db.add(attendance)
-    db.commit()
-    db.refresh(attendance)
-
-    return attendance
+        return new_session
 
 
-def check_out(db: Session, user_id: int):
-    today = date.today()
+    @staticmethod
+    def break_start(db: Session, user_id: int):
+        session = AttendanceService.get_open_session(db, user_id)
 
-    attendance = db.query(Attendance).filter(
-        Attendance.user_id == user_id,
-        Attendance.attendance_date == today
-    ).first()
+        if not session or session.status != "WORKING":
+            raise Exception("Invalid state for break start")
 
-    if not attendance or not attendance.check_in:
-        raise HTTPException(status_code=400, detail="Check-in required first")
+        db.add(AttendanceEvent(
+            attendance_id=session.id,
+            event_type="BREAK_START"
+        ))
 
-    if attendance.check_out:
-        raise HTTPException(status_code=400, detail="Already checked out")
-
-    # check active break before checkout
-    active_break = db.query(AttendanceBreak).filter(
-        AttendanceBreak.attendance_id == attendance.id,
-        AttendanceBreak.break_end == None
-    ).first()
-
-    if active_break:
-        raise HTTPException(status_code=400, detail="End break before checkout")
-
-    attendance.check_out = datetime.utcnow()
-
-    total_minutes = int((attendance.check_out - attendance.check_in).total_seconds() / 60)
-
-    break_minutes = sum(b.break_minutes for b in attendance.breaks)
-
-    attendance.total_break_minutes = break_minutes
-    attendance.total_work_minutes = total_minutes - break_minutes
-
-    # overtime
-    if attendance.total_work_minutes > 480:
-        attendance.overtime_minutes = attendance.total_work_minutes - 480
-
-    db.commit()
-    db.refresh(attendance)
-
-    return attendance
+        session.status = "BREAK"
+        db.commit()
 
 
-def get_my_attendance(db: Session, user_id: int):
-    return db.query(Attendance).filter(
-        Attendance.user_id == user_id
-    ).order_by(Attendance.attendance_date.desc()).all()
+    @staticmethod
+    def break_end(db: Session, user_id: int):
+        session = AttendanceService.get_open_session(db, user_id)
+
+        db.add(AttendanceEvent(
+            attendance_id=session.id,
+            event_type="BREAK_END"
+        ))
+
+        session.status = "WORKING"
+        db.commit()
 
 
-def get_all_attendance(db: Session):
-    return db.query(Attendance).all()
+    @staticmethod
+    def idle_start(db: Session, user_id: int):
+        session = AttendanceService.get_open_session(db, user_id)
 
-from models.attendance_break import AttendanceBreak
+        if not session or session.status != "WORKING":
+            return
+
+        db.add(AttendanceEvent(
+            attendance_id=session.id,
+            event_type="IDLE_START"
+        ))
+
+        session.status = "IDLE"
+        db.commit()
 
 
-def start_break(db: Session, user_id: int):
-    today = date.today()
+    @staticmethod
+    def logout(db: Session, user_id: int):
+        session = AttendanceService.get_open_session(db, user_id)
 
-    attendance = db.query(Attendance).filter(
-        Attendance.user_id == user_id,
-        Attendance.attendance_date == today
-    ).first()
+        if not session:
+            return
 
-    if not attendance or not attendance.check_in:
-        raise HTTPException(status_code=400, detail="Check-in required before break")
+        AttendanceService.close_open_events(db, session)
 
-    if attendance.check_out:
-        raise HTTPException(status_code=400, detail="Cannot start break after check-out")
+        session.check_out = datetime.utcnow()
+        session.status = "LOGGED_OUT"
 
-    # check active break
-    active_break = db.query(AttendanceBreak).filter(
-        AttendanceBreak.attendance_id == attendance.id,
-        AttendanceBreak.break_end == None
-    ).first()
-
-    if active_break:
-        raise HTTPException(status_code=400, detail="Break already active")
-
-    new_break = AttendanceBreak(
-        attendance_id=attendance.id,
-        break_start=datetime.utcnow()
-    )
-
-    db.add(new_break)
-    db.commit()
-
-    return new_break
-
-def end_break(db: Session, user_id: int):
-    today = date.today()
-
-    attendance = db.query(Attendance).filter(
-        Attendance.user_id == user_id,
-        Attendance.attendance_date == today
-    ).first()
-
-    if not attendance:
-        raise HTTPException(status_code=400, detail="Attendance not found")
-
-    active_break = db.query(AttendanceBreak).filter(
-        AttendanceBreak.attendance_id == attendance.id,
-        AttendanceBreak.break_end == None
-    ).first()
-
-    if not active_break:
-        raise HTTPException(status_code=400, detail="No active break")
-
-    active_break.break_end = datetime.utcnow()
-
-    minutes = int((active_break.break_end - active_break.break_start).total_seconds() / 60)
-    active_break.break_minutes = minutes
-
-    # update total break time
-    total_break = sum(b.break_minutes for b in attendance.breaks if b.break_minutes)
-    attendance.total_break_minutes = total_break
-
-    db.commit()
-
-    return active_break
+        db.commit()

@@ -93,12 +93,13 @@ async def create_user(
     
     first_name: Optional[str] = Form(None),
     last_name: Optional[str] = Form(None),
-    surname: Optional[str] = Form(None),
+    # surname: Optional[str] = Form(None),
     date_of_birth: Optional[str] = Form(None),
     
-    passport_no: Optional[str] = Form(None),
+    # passport_no: Optional[str] = Form(None),
     address: Optional[str] = Form(None),
     joining_date: Optional[str] = Form(None),
+    monthly_salary: Optional[float] = Form(None),
     
     # File uploads
     profile_image: Optional[UploadFile] = File(None),
@@ -159,14 +160,15 @@ async def create_user(
         phone_no=phone_no,
         first_name=first_name,
         last_name=last_name,
-        surname=surname,
+        # surname=surname,
         date_of_birth=dob,
-        passport_no=passport_no,
+        # passport_no=passport_no,
         passport_file=passport_path,
         profile_image=profile_path,
         address=address,
+        monthly_salary=monthly_salary,
         joining_date=join_date,
-        is_active=True,
+        status=True,
         failed_attempts=0,
         department_id=department_id
     )
@@ -269,10 +271,10 @@ async def update_user(
     
     first_name: Optional[str] = Form(None),
     last_name: Optional[str] = Form(None),
-    surname: Optional[str] = Form(None),
+    # surname: Optional[str] = Form(None),
     date_of_birth: Optional[str] = Form(None),
     
-    passport_no: Optional[str] = Form(None),
+    # passport_no: Optional[str] = Form(None),
     address: Optional[str] = Form(None),
     joining_date: Optional[str] = Form(None),
     
@@ -280,7 +282,7 @@ async def update_user(
     profile_image: Optional[UploadFile] = File(None),
     passport_file: Optional[UploadFile] = File(None),
     department_id: Optional[int] = Form(None),
-    
+    monthly_salary: Optional[float] = Form(None),
     db: Session = Depends(get_db),
     current_user: UserMaster = Depends(get_current_user)
 ):
@@ -348,10 +350,13 @@ async def update_user(
         user.first_name = first_name
     if last_name is not None:
         user.last_name = last_name
-    if surname is not None:
-        user.surname = surname
-    if passport_no is not None:
-        user.passport_no = passport_no
+    # if surname is not None:
+    #     user.surname = surname
+    # if passport_no is not None:
+    #     user.passport_no = passport_no
+    if monthly_salary is not None:
+        user.monthly_salary = monthly_salary
+
     if address is not None:
         user.address = address
     

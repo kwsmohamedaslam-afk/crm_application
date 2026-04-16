@@ -1,12 +1,20 @@
 from sqlalchemy.orm import Session
 from core.database import SessionLocal
-from models.user import UserMaster
+
+# ✅ IMPORT ALL MODELS (CRITICAL)
+from models.departments import DepartmentMaster
 from models.role import RoleMaster
+from models.user import UserMaster
+from models.module import Module
+from models.actions import Action
+from models.role_permissions import RolePermission
+
 from core.security import hash_password
 from utils.logger import logger
 
 # Default configuration
 DEFAULT_ROLES = ["ADMIN", "STAFF"]
+DEFAULT_DEPARTMENTS = ["ADMIN"]
 
 DEFAULT_ADMIN = {
     "username": "aslam",
@@ -36,6 +44,28 @@ def seed_roles(db: Session):
         logger.error(f"Error in seed_roles: {str(e)}")
         raise
 
+def seed_departments(db: Session):
+    """
+    Create default departments (ADMIN) if they do not exist.
+    Uses department_name (as per your model).
+    """
+    try:
+        for department_name in DEFAULT_DEPARTMENTS:
+            exists = db.query(DepartmentMaster).filter(
+                DepartmentMaster.department_name == department_name
+            ).first()
+
+            if not exists:
+                db.add(DepartmentMaster(department_name=department_name))
+                logger.info(f"Created department: {department_name}")
+
+        # Flush instead of commit (keeps transaction open)
+        db.flush()
+
+    except Exception as e:
+        logger.error(f"Error in seed_departments: {str(e)}")
+        raise
+
 
 def seed_admin_user(db: Session):
     try:
@@ -53,13 +83,21 @@ def seed_admin_user(db: Session):
 
         if not admin_role:
             raise Exception("ADMIN role not found.")
+        
+        admin_department = db.query(DepartmentMaster).filter(
+            DepartmentMaster.department_name == "ADMIN"
+        ).first()
+
+        if not admin_department:
+            raise Exception("ADMIN department not found.")
 
         new_admin = UserMaster(
             username=DEFAULT_ADMIN["username"],
             email="admin@example.com",  # ⚠️ REQUIRED (nullable=False)
             password=hash_password(DEFAULT_ADMIN["password"]),
             roleid=admin_role.id,   # ✅ FIXED HERE
-            is_active=True
+            department_id=admin_department.id,  # ✅ FIXED HERE
+            status=True
         )
 
         db.add(new_admin)
@@ -86,8 +124,9 @@ def run_seed():
 
         # Run in single transaction
         seed_roles(db)
+        seed_departments(db)
         seed_admin_user(db)
-
+        
         db.commit()
 
         logger.info("DB seed completed successfully.")

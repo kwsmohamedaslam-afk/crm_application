@@ -14,17 +14,18 @@ class UserCreate(BaseModel):
 
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    surname: Optional[str] = None
+    # surname: Optional[str] = None
 
     date_of_birth: Optional[str] = None  # or date
 
-    passport_no: Optional[str] = None
+    # passport_no: Optional[str] = None
     passport_file: Optional[str] = None
     profile_image: Optional[str] = None
 
     address: Optional[str] = None
     joining_date: Optional[str] = None
-
+    monthly_salary: Optional[float] = None
+    department_id: Optional[int] = None
 
 class UserUpdate(BaseModel):
     username: Optional[str] = None
@@ -37,18 +38,20 @@ class UserUpdate(BaseModel):
 
     first_name: Optional[str] = None
     last_name: Optional[str] = None
-    surname: Optional[str] = None
+    # surname: Optional[str] = None
 
     date_of_birth: Optional[str] = None
 
-    passport_no: Optional[str] = None
+    # passport_no: Optional[str] = None
     passport_file: Optional[str] = None
     profile_image: Optional[str] = None
 
     address: Optional[str] = None
     joining_date: Optional[str] = None
+    monthly_salary: Optional[float] = None
+    department_id: Optional[int] = None
 
-    is_active: Optional[bool] = None
+    status: Optional[bool] = None
 
 
 class UserOut(BaseModel):
@@ -63,18 +66,19 @@ class UserOut(BaseModel):
 
     first_name: Optional[str]
     last_name: Optional[str]
-    surname: Optional[str]
+    # surname: Optional[str]
 
     date_of_birth: Optional[date]=None
 
-    passport_no: Optional[str]
+    # passport_no: Optional[str]
     passport_file: Optional[str]
     profile_image: Optional[str]
 
     address: Optional[str]
     joining_date: Optional[date] =None
-
-    is_active: Optional[bool]
+    monthly_salary: Optional[float]
+    department_id: Optional[int]
+    status: Optional[bool]
 
     model_config = {"from_attributes": True}
 

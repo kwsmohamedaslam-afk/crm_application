@@ -1,6 +1,7 @@
-from sqlalchemy import Column, Integer, Date, DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, String
 from sqlalchemy.orm import relationship
 from core.database import Base
+from datetime import datetime
 
 
 class Attendance(Base):
@@ -8,27 +9,21 @@ class Attendance(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("user_master.id"), nullable=False)
-    attendance_date = Column(Date, nullable=False)
 
-    check_in = Column(DateTime, nullable=True)
+    check_in = Column(DateTime, default=datetime.utcnow)
     check_out = Column(DateTime, nullable=True)
+
+    status = Column(String(50), default="WORKING")
+
+    last_activity_at = Column(DateTime, default=datetime.utcnow)
 
     total_work_minutes = Column(Integer, default=0)
     total_break_minutes = Column(Integer, default=0)
-    overtime_minutes = Column(Integer, default=0)
+    total_idle_minutes = Column(Integer, default=0)
 
-    status = Column(Integer, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    # ✅ ADD THIS (MISSING LINE)
-    user = relationship("UserMaster", back_populates="attendances")
+    events = relationship("AttendanceEvent", back_populates="attendance", cascade="all, delete")
 
-    # existing
-    breaks = relationship(
-        "AttendanceBreak",
-        back_populates="attendance",
-        cascade="all, delete-orphan"
-    )
-
-    __table_args__ = (
-        UniqueConstraint("user_id", "attendance_date", name="unique_user_date"),
-    )
+    user = relationship("UserMaster", back_populates="attendances") 

@@ -1,9 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from core.database import Base, engine
 from core.default_data import run_seed
-from routers import auth_router, users_router, roles_router, logs_router,department_router,attendance_router,salary_router
+from routers import auth_router, users_router, roles_router, logs_router,department_router,attendance_router,salary_router, shift_router
 import models
 from core.db_sync import sync_db
 
@@ -23,6 +24,8 @@ app = FastAPI(
     version="1.0.0",
     docs_url="/docs",
     redoc_url="/redoc",)
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads") # for sending files to frontend
 
 @app.on_event("startup")
 def on_startup():
@@ -55,7 +58,7 @@ app.include_router(logs_router)
 app.include_router(department_router)
 app.include_router(attendance_router)
 app.include_router(salary_router)
-
+app.include_router(shift_router)
 
 # ── Health check ──────────────────────────────────────────────────────────────
 @app.get("/", tags=["Health"], summary="Health check")

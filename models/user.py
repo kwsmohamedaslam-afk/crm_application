@@ -1,4 +1,4 @@
-from sqlalchemy import Column, ForeignKey, Integer, String, Date, DateTime, Boolean, Text
+from sqlalchemy import DECIMAL, Column, ForeignKey, Integer, String, Date, DateTime, Boolean, Text
 from datetime import datetime
 
 from sqlalchemy.orm import relationship
@@ -19,7 +19,7 @@ class UserMaster(Base):
     # 👤 Personal Info
     first_name = Column(String(100), nullable=True)
     last_name = Column(String(100), nullable=True)
-    surname = Column(String(100), nullable=True)
+    # surname = Column(String(100), nullable=True)
 
     date_of_birth = Column(Date, nullable=True)
 
@@ -27,7 +27,7 @@ class UserMaster(Base):
     address = Column(Text, nullable=True)
 
     # 🪪 Identity
-    passport_no = Column(String(50), nullable=True)
+    # passport_no = Column(String(50), nullable=True)
 
     # 📁 File Upload Paths (store only path, not file)
     passport_file = Column(String(500), nullable=True)
@@ -39,7 +39,8 @@ class UserMaster(Base):
 
     # 🔐 Security
     failed_attempts = Column(Integer, default=0)
-    is_active = Column(Boolean, default=True)
+    status = Column(Boolean, default=True)
+    monthly_salary = Column(DECIMAL(10, 2), nullable=True)
 
     # 🕒 Audit
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -52,4 +53,4 @@ class UserMaster(Base):
     department_id = Column(Integer, ForeignKey("department_master.id"), nullable=True)
 
     # ✅ RELATIONSHIP
-    department = relationship("DepartmentMaster", backref="users")
+    department = relationship("DepartmentMaster", backref="users") 
